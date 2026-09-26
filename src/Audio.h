@@ -23,6 +23,8 @@ public:
   ~WaveOutPlayer(){ Stop(); }
   void Stop();
   bool Play(const std::vector<float>& pcm, uint32_t rate);
+  bool IsPlaying() const { return h_ && !(hdr_.dwFlags & WHDR_DONE); }
+  size_t PositionSamples() const;
 private:
   HWAVEOUT h_=nullptr; WAVEHDR hdr_{}; std::vector<int16_t> buf_;
 };

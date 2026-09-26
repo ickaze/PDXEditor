@@ -1,19 +1,20 @@
 ﻿#include "Audio.h"
+#include "Localization.h"
 
 static uint16_t rd16(const uint8_t*p){return uint16_t(p[0]|(p[1]<<8));}
 static uint32_t rd32(const uint8_t*p){return uint32_t(p[0]|(p[1]<<8)|(p[2]<<16)|(p[3]<<24));}
 
 bool LoadWave(const std::wstring& path, WaveData& out, std::wstring& err){
-  std::ifstream f(fs::path(path),std::ios::binary); if(!f){err=L"ファイルを開けません";return false;}
-  std::vector<uint8_t>d((std::istreambuf_iterator<char>(f)),{}); if(d.size()<12||memcmp(d.data(),"RIFF",4)||memcmp(d.data()+8,"WAVE",4)){err=L"WAV(RIFF)ではありません";return false;}
+  std::ifstream f(fs::path(path),std::ios::binary); if(!f){err=Tr(L"s012");return false;}
+  std::vector<uint8_t>d((std::istreambuf_iterator<char>(f)),{}); if(d.size()<12||memcmp(d.data(),"RIFF",4)||memcmp(d.data()+8,"WAVE",4)){err=Tr(L"s013");return false;}
   uint16_t tag=0,ch=0,bits=0,block=0; uint32_t rate=0; const uint8_t* pcm=nullptr; size_t pcmBytes=0;
   for(size_t p=12;p+8<=d.size();){ uint32_t n=rd32(&d[p+4]); size_t b=p+8; if(b+n>d.size())break;
     if(!memcmp(&d[p],"fmt ",4)&&n>=16){tag=rd16(&d[b]);ch=rd16(&d[b+2]);rate=rd32(&d[b+4]);block=rd16(&d[b+12]);bits=rd16(&d[b+14]); if(tag==0xFFFE&&n>=40) tag=rd16(&d[b+24]);}
     else if(!memcmp(&d[p],"data",4)){pcm=&d[b];pcmBytes=n;}
     p=b+n+(n&1);
   }
-  if(!pcm||!ch||!rate||!block){err=L"WAVのfmt/dataチャンクが不正です";return false;}
-  if(tag!=1&&tag!=3){err=L"PCM/IEEE float以外のWAVは未対応です";return false;}
+  if(!pcm||!ch||!rate||!block){err=Tr(L"s014");return false;}
+  if(tag!=1&&tag!=3){err=Tr(L"s015");return false;}
   size_t frames=pcmBytes/block; out.mono.resize(frames); out.sampleRate=rate; out.bits=bits; out.channels=ch;
   out.formatName=(tag==3?L"WAV Float":L"WAV PCM");
   for(size_t i=0;i<frames;i++){
@@ -25,7 +26,7 @@ bool LoadWave(const std::wstring& path, WaveData& out, std::wstring& err){
       else if(bits==16){int16_t x=int16_t(rd16(q));v=x/32768.0;}
       else if(bits==24){int32_t x=int32_t(q[0]|(q[1]<<8)|(q[2]<<16)); if(x&0x800000)x|=~0xFFFFFF; v=x/8388608.0;}
       else if(bits==32){int32_t x=int32_t(rd32(q));v=x/2147483648.0;}
-      else {err=L"未対応のビット深度です";return false;}
+      else {err=Tr(L"s016");return false;}
       sum+=v;
     }
     out.mono[i]=float(std::clamp(sum/ch,-1.0,1.0));
@@ -70,6 +71,7 @@ std::vector<float> TimeStretchOLA(const std::vector<float>& in,double factor){
   };
 
   size_t inPos=0, outPos=0;
+  int previousBest=0;
   // First frame.
   for(int i=0;i<frame && size_t(i)<in.size() && size_t(i)<out.size();++i){
     const float w=win(i); out[i]+=in[i]*w; weight[i]+=w;
@@ -79,7 +81,10 @@ std::vector<float> TimeStretchOLA(const std::vector<float>& in,double factor){
   outPos=synthHop;
   while(outPos < wanted && predicted < double(in.size())){
     int center=int(std::llround(predicted));
-    int lo=std::max(0,center-search);
+    // Keep the source cursor moving forward.  Feeding the matched position
+    // back into the prediction can lock onto an earlier period of a sustained
+    // tone, especially for downward pitch shifts, and leave the tail unused.
+    int lo=std::max(previousBest+1,center-search);
     int hi=std::min<int>(int(in.size())-frame,center+search);
     if(hi<lo) break;
 
@@ -103,7 +108,8 @@ std::vector<float> TimeStretchOLA(const std::vector<float>& in,double factor){
     for(int i=0;i<frame && inPos+size_t(i)<in.size() && outPos+size_t(i)<out.size();++i){
       const float w=win(i); out[outPos+i]+=in[inPos+i]*w; weight[outPos+i]+=w;
     }
-    predicted=double(best)+analysisHop;
+    previousBest=best;
+    predicted+=analysisHop;
     outPos+=synthHop;
   }
 
@@ -155,7 +161,7 @@ std::vector<float> DecodeTarget(const uint8_t*d,size_t bytes,PcmFormat fmt){
 }
 
 bool WriteMono16Wave(const std::wstring& path,const std::vector<float>& p,uint32_t rate,std::wstring& err){
-  std::ofstream f(fs::path(path),std::ios::binary);if(!f){err=L"WAVを書き込めません";return false;}
+  std::ofstream f(fs::path(path),std::ios::binary);if(!f){err=Tr(L"s017");return false;}
   auto w16=[&](uint16_t v){uint8_t b[2]={uint8_t(v),uint8_t(v>>8)};f.write((const char*)b,2);};
   auto w32=[&](uint32_t v){uint8_t b[4]={uint8_t(v),uint8_t(v>>8),uint8_t(v>>16),uint8_t(v>>24)};f.write((const char*)b,4);};
   const uint16_t channels=1,bits=16,blockAlign=2;
@@ -166,11 +172,19 @@ bool WriteMono16Wave(const std::wstring& path,const std::vector<float>& p,uint32
   f.write("data",4);w32(data);
   size_t samples=data/2;
   for(size_t i=0;i<samples;++i){int16_t sv=(int16_t)std::lround(std::clamp(p[i],-1.f,1.f)*32767.f);w16(uint16_t(sv));}
-  if(!f){err=L"WAV書き込み中にエラーが発生しました";return false;}
+  if(!f){err=Tr(L"s018");return false;}
   return true;
 }
 
 void WaveOutPlayer::Stop(){if(h_){waveOutReset(h_);if(hdr_.dwFlags&WHDR_PREPARED)waveOutUnprepareHeader(h_,&hdr_,sizeof(hdr_));waveOutClose(h_);h_=nullptr;}buf_.clear();ZeroMemory(&hdr_,sizeof(hdr_));}
+size_t WaveOutPlayer::PositionSamples() const{
+  if(!h_) return 0;
+  MMTIME mt{}; mt.wType=TIME_BYTES;
+  if(waveOutGetPosition(h_,&mt,sizeof(mt))!=MMSYSERR_NOERROR) return 0;
+  if(mt.wType==TIME_BYTES) return size_t(mt.u.cb)/4u; // stereo 16-bit = 4 bytes per sample frame
+  if(mt.wType==TIME_SAMPLES) return size_t(mt.u.sample);
+  return 0;
+}
 bool WaveOutPlayer::Play(const std::vector<float>& p,uint32_t rate){
   Stop(); if(p.empty())return false;
   // Explicitly duplicate the mono signal to L/R. Some Windows/audio-device

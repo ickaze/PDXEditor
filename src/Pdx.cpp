@@ -1,4 +1,6 @@
 ﻿#include "Pdx.h"
+#include <cmath>
+#include "Localization.h"
 
 static uint32_t be32(const uint8_t* p){
     return (uint32_t(p[0])<<24)|(uint32_t(p[1])<<16)|(uint32_t(p[2])<<8)|p[3];
@@ -71,7 +73,7 @@ static bool CheckPdxCandidate(const std::vector<uint8_t>& bytes,int banks,bool l
 }
 
 static bool ParsePdxBytes(ImportedPdx& out,std::wstring& err){
-    if(out.bytes.size()<8){err=L"PDXが小さすぎます";return false;}
+    if(out.bytes.size()<8){err=Tr(L"s000");return false;}
 
     PdxCandidate best{};
     bool found=false;
@@ -152,7 +154,7 @@ static bool ParsePdxBytes(ImportedPdx& out,std::wstring& err){
         }
     }
 
-    if(!found){err=L"PDXヘッダを判定できません（標準PDX/EX-PDXとも不整合）";return false;}
+    if(!found){err=Tr(L"s001");return false;}
     out.banks=best.banks;
     out.table.clear(); out.table.resize(out.banks);
 
@@ -166,18 +168,50 @@ static bool ParsePdxBytes(ImportedPdx& out,std::wstring& err){
             e.length=best.legacy16?(rawLen&0xFFFFu):rawLen;
             if(e.offset==0){e.length=0;continue;}
             if(!e.length||e.offset<best.headerBytes||uint64_t(e.offset)+e.length>out.bytes.size()){
-                err=L"PDX内のoffset/lengthが範囲外です";return false;
+                err=Tr(L"s002");return false;
             }
         }
     }
 
-    const PdxEntry* e=nullptr;
-    for(const auto& bank:out.table){for(const auto& x:bank){if(x.length){e=&x;break;}}if(e)break;}
-    if(e){
-        const auto* d=out.bytes.data()+e->offset;
-        const double a=rough(DecodeTarget(d,e->length,PcmFormat::ADPCM));
-        const double p8=rough(DecodeTarget(d,e->length,PcmFormat::P8));
-        const double p16=(e->length%2)?1e9:rough(DecodeTarget(d,e->length,PcmFormat::P16));
+    // PDX does not store the PCM encoding type, so format detection is heuristic.
+    // Do not judge from only the first non-empty entry: some real PDX files contain
+    // a 1- or 2-byte dummy/silence sample at low note numbers (VATLVA10.PDX is one
+    // such case), which makes P8 appear artificially smooth.  Instead, inspect a
+    // representative set of sufficiently large samples and compare median roughness.
+    struct FormatProbe { const PdxEntry* e=nullptr; };
+    std::vector<const PdxEntry*> probes;
+    bool p16Possible=true;
+    for(const auto& bank:out.table){
+        for(const auto& x:bank){
+            if(!x.length)continue;
+            if(x.length&1u)p16Possible=false;
+            if(x.length>=64u)probes.push_back(&x);
+        }
+    }
+    if(probes.empty()){
+        for(const auto& bank:out.table)for(const auto& x:bank)if(x.length)probes.push_back(&x);
+    }
+    std::sort(probes.begin(),probes.end(),[](const PdxEntry* a,const PdxEntry* b){return a->length>b->length;});
+    if(probes.size()>16)probes.resize(16);
+
+    auto medianScore=[&](PcmFormat fmt)->double{
+        std::vector<double> scores; scores.reserve(probes.size());
+        for(const auto* e:probes){
+            if(fmt==PcmFormat::P16 && (e->length&1u))continue;
+            const auto* d=out.bytes.data()+e->offset;
+            const double r=rough(DecodeTarget(d,e->length,fmt));
+            if(std::isfinite(r))scores.push_back(r);
+        }
+        if(scores.empty())return 1e9;
+        std::sort(scores.begin(),scores.end());
+        const size_t m=scores.size()/2;
+        return (scores.size()&1u)?scores[m]:(scores[m-1]+scores[m])*0.5;
+    };
+
+    if(!probes.empty()){
+        const double a=medianScore(PcmFormat::ADPCM);
+        const double p8=medianScore(PcmFormat::P8);
+        const double p16=p16Possible?medianScore(PcmFormat::P16):1e9;
         out.guessed=(a<=p8&&a<=p16)?PcmFormat::ADPCM:(p8<=p16?PcmFormat::P8:PcmFormat::P16);
     }
     return true;
@@ -185,7 +219,7 @@ static bool ParsePdxBytes(ImportedPdx& out,std::wstring& err){
 
 bool ReadPdx(const std::wstring& path,ImportedPdx& out,std::wstring& err){
     std::ifstream f(fs::path(path),std::ios::binary);
-    if(!f){err=L"PDXを開けません";return false;}
+    if(!f){err=Tr(L"s003");return false;}
     out=ImportedPdx{};
     out.bytes.assign(std::istreambuf_iterator<char>(f),{});
 
@@ -195,7 +229,7 @@ bool ReadPdx(const std::wstring& path,ImportedPdx& out,std::wstring& err){
     // Compressed PDX is deliberately unsupported.  Detection is performed only
     // after ordinary PDX parsing fails, avoiding false positives from PCM payload.
     if(HasLzx042Marker(out.bytes)){
-        err=L"LZX042圧縮PDXは未対応です。展開済みのPDXを使用してください。";
+        err=Tr(L"s004");
         return false;
     }
 
@@ -205,11 +239,11 @@ bool ReadPdx(const std::wstring& path,ImportedPdx& out,std::wstring& err){
 
 bool ExtractPdxAllBanks(const std::wstring&,const ImportedPdx& pdx,const std::wstring& folder,
                         std::vector<std::array<std::wstring,96>>& paths,std::wstring& err){
-    try{fs::create_directories(folder);}catch(...){err=L"展開フォルダを作成できません";return false;}
+    try{fs::create_directories(folder);}catch(...){err=Tr(L"s005");return false;}
     paths.clear(); paths.resize(pdx.banks);
     for(int b=0;b<pdx.banks;++b){
         std::wstring bankName=L"bank"; if(b<10)bankName+=L"0"; bankName+=std::to_wstring(b); fs::path bankFolder=fs::path(folder)/bankName;
-        try{fs::create_directories(bankFolder);}catch(...){err=L"バンク展開フォルダを作成できません";return false;}
+        try{fs::create_directories(bankFolder);}catch(...){err=Tr(L"s006");return false;}
         for(int i=0;i<96;++i){
             auto e=pdx.table[b][i]; paths[b][i].clear(); if(!e.length)continue;
             auto pcm=DecodeTarget(pdx.bytes.data()+e.offset,e.length,pdx.guessed);
@@ -224,9 +258,9 @@ bool ExtractPdxAllBanks(const std::wstring&,const ImportedPdx& pdx,const std::ws
 
 bool WriteExPdxMulti(const std::wstring& path,const std::vector<std::array<std::vector<uint8_t>,96>>& banks,
                      std::wstring& err,std::vector<std::wstring>* log){
-    if(banks.empty()||banks.size()>256){err=L"バンク数が不正です";return false;}
+    if(banks.empty()||banks.size()>256){err=Tr(L"s007");return false;}
     std::ofstream f(fs::path(path),std::ios::binary);
-    if(!f){err=L"PDXを書き込めません";return false;}
+    if(!f){err=Tr(L"s008");return false;}
 
     uint64_t off=banks.size()*768ull;
     for(size_t b=0;b<banks.size();++b){
@@ -234,9 +268,9 @@ bool WriteExPdxMulti(const std::wstring& path,const std::vector<std::array<std::
             uint64_t len=banks[b][i].size();
             if(len>0xFFFFFFFFull){
                 len=0xFFFFFFFFull;
-                if(log)log->push_back(L"bank "+std::to_wstring(b)+L" 音色 "+std::to_wstring(i)+L": 32bit長上限で打ち切りました");
+                if(log)log->push_back(L"bank "+std::to_wstring(b)+Tr(L"s009")+std::to_wstring(i)+Tr(L"s010"));
             }
-            if(off>0xFFFFFFFFull){err=L"PDX全体が32bit offset範囲を超えます";return false;}
+            if(off>0xFFFFFFFFull){err=Tr(L"s011");return false;}
             putbe32(f,len?uint32_t(off):0); putbe32(f,uint32_t(len)); off+=len;
         }
     }
