@@ -65,7 +65,7 @@ echo Example:
 echo   set VS2022_PATH=D:\VisualStudio\2022\Community
 echo   build_vs2022.bat
 echo.
-pause
+if not defined CI pause
 exit /b 1
 
 :found
@@ -83,16 +83,18 @@ echo.
 if errorlevel 1 (
     echo.
     echo BUILD FAILED.
-    pause
+    if not defined CI pause
     exit /b 1
 )
 
 echo.
+if not exist "x64\Release\languages\ja.lang" goto :missing_languages
+if not exist "x64\Release\languages\en.lang" goto :missing_languages
 echo BUILD SUCCEEDED.
 echo Output:
 echo   x64\Release\PDXEditor.exe
 echo.
-pause
+if not defined CI pause
 exit /b 0
 
 :check_vs
@@ -100,3 +102,8 @@ if exist "%~1\MSBuild\Current\Bin\MSBuild.exe" (
     set "MSBUILD=%~1\MSBuild\Current\Bin\MSBuild.exe"
 )
 exit /b
+
+:missing_languages
+echo ERROR: Runtime language files were not copied by MSBuild.
+if not defined CI pause
+exit /b 1

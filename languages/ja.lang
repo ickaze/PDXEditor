@@ -101,3 +101,7 @@ text.s094=トランスポーズ
 text.s095=ADPCM
 text.s096=P16 (16bit PCM)
 text.s097=P8 (8bit PCM)
+
+text.s098=PDXEditor.iniを保存できません。実行ファイルのフォルダーの書き込み権限を確認してください。
+
+text.s099=再生方向を変更（チェック時は逆再生）

@@ -1,4 +1,7 @@
-﻿#pragma once
+﻿// SPDX-License-Identifier: 0BSD
+// Copyright (C) 2026 by I.C.KaZe
+
+#pragma once
 #include <windows.h>
 #include <commctrl.h>
 #include <mmsystem.h>
@@ -24,7 +27,29 @@
 
 namespace fs = std::filesystem;
 
-inline std::string WToUtf8(const std::wstring& s){ if(s.empty())return{}; int n=WideCharToMultiByte(CP_UTF8,0,s.data(),(int)s.size(),nullptr,0,nullptr,nullptr); std::string o(n,0); WideCharToMultiByte(CP_UTF8,0,s.data(),(int)s.size(),o.data(),n,nullptr,nullptr); return o; }
-inline std::wstring Utf8ToW(const std::string& s){ if(s.empty())return{}; int n=MultiByteToWideChar(CP_UTF8,0,s.data(),(int)s.size(),nullptr,0); std::wstring o(n,0); MultiByteToWideChar(CP_UTF8,0,s.data(),(int)s.size(),o.data(),n); return o; }
-inline std::wstring BaseName(const std::wstring& p){ return fs::path(p).filename().wstring(); }
-inline uint64_t TickMs(){ return GetTickCount64(); }
+inline std::string WToUtf8(const std::wstring &s)
+{
+    if (s.empty())
+        return {};
+    int n = WideCharToMultiByte(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0, nullptr, nullptr);
+    std::string o(n, 0);
+    WideCharToMultiByte(CP_UTF8, 0, s.data(), (int)s.size(), o.data(), n, nullptr, nullptr);
+    return o;
+}
+inline std::wstring Utf8ToW(const std::string &s)
+{
+    if (s.empty())
+        return {};
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
+    std::wstring o(n, 0);
+    MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), o.data(), n);
+    return o;
+}
+inline std::wstring BaseName(const std::wstring &p)
+{
+    return fs::path(p).filename().wstring();
+}
+inline uint64_t TickMs()
+{
+    return GetTickCount64();
+}

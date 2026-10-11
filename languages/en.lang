@@ -101,3 +101,7 @@ text.s094=Transpose
 text.s095=ADPCM
 text.s096=P16 (16-bit PCM)
 text.s097=P8 (8-bit PCM)
+
+text.s098=Cannot save PDXEditor.ini. Check write permission for the executable folder.
+
+text.s099=Change playback direction (checked: reverse)
