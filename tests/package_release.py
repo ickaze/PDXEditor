@@ -38,9 +38,9 @@ def inspect_pe(data):
             entry = at + item*28
             kind, size, raw = u32(entry+12), u32(entry+16), u32(entry+24)
             debug_types.append(kind)
-            # POGO, reproducible-build and extended DLL characteristics are
+            # POGO, incremental-LTCG, reproducible-build and extended DLL characteristics are
             # linker/loader metadata, not symbols or source path records.
-            assert kind in (13, 16, 20), f"Symbol/debug record type {kind}"
+            assert kind in (13, 14, 16, 20), f"Symbol/debug record type {kind}"
             payload = data[raw:raw+size]
             assert b"RSDS" not in payload and b"NB10" not in payload, "PDB record"
             import re
