@@ -140,4 +140,4 @@ EXEを配布するときは`languages`フォルダーとコピーされた文書
 
 ## GitHub Releases
 
-`.github/workflows/release.yml` はmain更新時または手動実行時にポータブルテスト、Windows Release x64ビルド、PEとZIPの検査を行い、v1.2.0のWindows版・ソース版・SHA-256を公開します。公開先タグとビルドコミットの一致を確認し、別コミットの同名タグがある場合は上書きしません。新規Releaseはドラフトで作成し、アップロード完了後に公開します。
+`.github/workflows/release.yml` はmain更新時または手動実行時にポータブルテスト、Windows Release x64ビルド、PEのシンボル・PDB参照・メタデータ内の絶対パスおよびZIPの検査を行い、v1.2.0のWindows版・ソース版・SHA-256を公開します。公開先タグとビルドコミットの一致を確認し、別コミットの同名タグがある場合は上書きしません。新規Releaseはドラフトで作成し、アップロード完了後に公開します。

@@ -19,7 +19,6 @@ def inspect_pe(data):
     optional = pe + 24
     assert u16(optional) == 0x20b, "Not PE32+"
     directory = optional + 112
-    assert u32(directory+6*8) == 0 and u32(directory+6*8+4) == 0, "Debug directory embedded"
     sections = []
     table = optional + u16(pe+20)
     for i in range(u16(pe+6)):
@@ -30,6 +29,23 @@ def inspect_pe(data):
             if va <= rva < va+size:
                 return raw+rva-va
         raise AssertionError(f"Unmapped RVA {rva:x}")
+    debug_rva, debug_size = u32(directory+6*8), u32(directory+6*8+4)
+    debug_types = []
+    if debug_rva:
+        assert debug_size % 28 == 0, "Invalid debug directory"
+        at = offset(debug_rva)
+        for item in range(debug_size // 28):
+            entry = at + item*28
+            kind, size, raw = u32(entry+12), u32(entry+16), u32(entry+24)
+            debug_types.append(kind)
+            # POGO, reproducible-build and extended DLL characteristics are
+            # linker/loader metadata, not symbols or source path records.
+            assert kind in (13, 16, 20), f"Symbol/debug record type {kind}"
+            payload = data[raw:raw+size]
+            assert b"RSDS" not in payload and b"NB10" not in payload, "PDB record"
+            import re
+            assert not re.search(rb"[A-Za-z]:[\\/]", payload), "Build path in metadata"
+    print("PE metadata types:", debug_types)
     imports = []
     rva = u32(directory+8)
     assert rva, "Import directory absent"
@@ -58,7 +74,7 @@ def main():
     report = (f"PDXEditor v{VERSION}\nCommit: {commit}\n"
               "Windows x64 MSVC Release build: passed\n"
               "PE AMD64: passed\nExternal VC++ runtime imports: none\n"
-              "PE debug directory: absent\nZIP contents and CRC: verified\n"
+              "PE symbol/PDB records and build paths in linker metadata: absent\nZIP contents and CRC: verified\n"
               "Portable core and NDSIF mock checks: passed in prerequisite CI job\n"
               "Windows GUI, MIDI, audible output and NanoDrive8 hardware: not tested\n"
               "Imports: " + ", ".join(imports) + "\n").encode()

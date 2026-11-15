@@ -23,7 +23,7 @@ g++ -std=c++17 -Wall -Wextra -Werror -pthread -Itests/mock -Isrc tests/ndsif_aud
 ## 今版の未確認範囲
 
 ローカル環境ではWindows／VS2022によるGUI全体のビルドは未実施です。GitHub Actionsでのビルド・PE検査結果はWindows配布ZIPのBUILD_VALIDATION.txtに記録します。描画・入力・MIDI・waveOut、NanoDrive8実機出力、通信遅延・音質・長時間稼働は未確認です。模擬APIとASCIIパスを使う検証は、Windowsのドライバーや日本語パス・権限を検証しません。
-ソースアーカイブはソースのみです。別途Windows配布ZIPをGitHub Actionsで生成する際、インポートテーブルとデバッグディレクトリーを検査し、結果をBUILD_VALIDATION.txtへ記録します。GUIの実行確認は行いません。
+ソースアーカイブはソースのみです。別途Windows配布ZIPをGitHub Actionsで生成する際、インポートテーブルとシンボル・PDB参照・リンクメタデータ内の絶対パスを検査し、結果をBUILD_VALIDATION.txtへ記録します。GUIの実行確認は行いません。
 
 ## 同梱物
 
