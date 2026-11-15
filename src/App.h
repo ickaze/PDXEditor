@@ -28,6 +28,10 @@ class App
     HWND previewTrack_{}, previewLabel_{}, waveEdit_{}, waveScroll_{};
     HWND languageCombo_{}, languageLabel_{}, pdxNameLabel_{}, formatLabel_{}, loadBtn_{},
         convertBtn_{}, bankLabel_{}, volumeLabel_{}, transposeLabel_{};
+    HWND outputLabel_{}, outputCombo_{}, portCombo_{}, reconnectBtn_{};
+    std::vector<int> outputPorts_;
+    void RefreshOutputPorts();
+    void ApplyAudioOutput();
     HFONT font_{};
     ProjectSetting prj_;
     std::wstring projectPath_;

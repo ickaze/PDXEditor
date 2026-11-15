@@ -32,6 +32,8 @@ struct ProjectSetting
     std::wstring sourcePdx;
     int currentBank = 0;
     int internalOctave = 0;
+    int audioOutput = 0; // 0=Windows Audio, 1=NDSIF; common INI setting
+    int ndsifCom = 0;    // explicit COM port; 0=not selected
     int previewVolume = 100;   // tool preview only, 0..500 percent
     int language = -1;         // legacy index: 0=Japanese, 1=English
     std::wstring languageCode; // external language pack code, e.g. ja/en

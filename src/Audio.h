@@ -3,6 +3,7 @@
 
 #pragma once
 #include "Common.h"
+#include "NdsifAudio.h"
 
 enum class PcmFormat
 {
@@ -32,6 +33,7 @@ bool WriteMono16Wave(const std::wstring &path, const std::vector<float> &pcm, ui
 class WaveOutPlayer
 {
   public:
+    static void UseNdsif(bool enabled) { useNdsif_ = enabled; }
     ~WaveOutPlayer()
     {
         Stop();
@@ -40,11 +42,14 @@ class WaveOutPlayer
     bool Play(const std::vector<float> &pcm, uint32_t rate);
     bool IsPlaying() const
     {
-        return h_ && !(hdr_.dwFlags & WHDR_DONE);
+        return ndVoice_ ? !ndVoice_->stopped && !ndVoice_->finished
+                        : h_ && !(hdr_.dwFlags & WHDR_DONE);
     }
     size_t PositionSamples() const;
 
   private:
+    inline static bool useNdsif_ = false;
+    std::shared_ptr<NdsifVoice> ndVoice_;
     HWAVEOUT h_ = nullptr;
     WAVEHDR hdr_{};
     std::vector<int16_t> buf_;

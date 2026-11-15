@@ -105,3 +105,10 @@ text.s097=P8 (8-bit PCM)
 text.s098=Cannot save PDXEditor.ini. Check write permission for the executable folder.
 
 text.s099=Change playback direction (checked: reverse)
+
+
+text.nds_output=Audio output
+text.nds_reconnect=Refresh/connect
+text.nds_error=NDSIF output stopped:
+text.nds_choose_port=Select the NDSIF COM port.
+text.nds_connected=NDSIF connected:

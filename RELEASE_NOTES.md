@@ -1,20 +1,20 @@
-# PDXEditor v1.1.1
+# PDXEditor v1.2.0
 
-## 主な機能と変更
+v1.1.1を基準にNDSIF音声出力を追加したソース更新です。
 
-- 波形範囲編集、逆再生、Ctrl+A、Enter／スペースでの試聴。
-- 共通設定を実行ファイル横のPDXEditor.iniへ保存。
-- 固定レイアウト、直接位置指定スライダー、MIDIデバイス再検出。
-- 0BSDライセンス、外部言語と内蔵英語フォールバック。
-- Releaseビルドを`/MT`へ変更。再ビルドしたRelease版はVC++再頒布可能パッケージの別途インストール不要。
-- PDB参照はファイル名のみとし、ビルド先の絶対パスを除去。
+- Windows Audio／NDSIF、COM番号、再検出・接続を選択可能。
+- WAVリスト・鍵盤・PCキー・MIDIの試聴をミックスし、MSM6258互換ADPCMを15.625kHzで転送。
+- 能力・クロック・容量確認、fault停止、再接続に対応。
+- 出力設定をPDXEditor.iniへ保存。既存の逆再生・範囲編集・設定移行・Undo/Redoを維持。
+- 日本語／英語と内蔵英語、ライセンス通知を更新。Releaseは静的ランタイムでデバッグ情報を生成しない設定。
 
-## 配布方針
+## 配布内容
 
-Windows版ZIPは単一の最上位フォルダー`PDXEditor_v1.1.1`に実行ファイル・言語ファイル・文書を格納します。展開したフォルダー内のPDXEditor.exeを起動してください。既存INIやプロジェクトは保持してください。PDBは同梱しません。
+`PDXEditor_v1.2.0_source.zip` は単一フォルダー `PDXEditor_v1.2.0` にソース・ビルド設定・言語・文書・テストを収録します。EXE・DLL・PDB・INI・ユーザープロジェクトは含みません。
+`build_vs2022.bat` または `Release | x64` で再ビルドしてください。既存のINIとプロジェクトは保持してください。
 
-配布用EXEにAuthenticode署名がない場合、初回起動時にWindows SmartScreenの警告が表示されることがあります。
+## 検証範囲
 
-このソース配布物にはEXEを含めません。静的リンクとPDB参照の変更は再ビルド後のEXEに適用されます。検証範囲はVALIDATION.mdを参照してください。
+ポータブルコアの設定／WAV／PDX回帰検証とNDSIF模擬通信検証を実行しました。Windows上の全体ビルド・GUI・音声・MIDI・NanoDrive8実機動作は未確認です。詳細はVALIDATION.mdを参照してください。
 
-ライセンス：0BSD。Copyright (C) 2026 by I.C.KaZe。
+ライセンス：本体0BSD、Copyright (C) 2026 by I.C.KaZe。IndependentMDX由来コードの著作権と参照元のライセンスはTHIRD_PARTY_NOTICES.mdを参照してください。

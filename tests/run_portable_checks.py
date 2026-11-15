@@ -73,12 +73,23 @@ int main(int argc,char**argv){
  assert(q.banks[0].slot[0].reverse&&q.banks[0].slot[0].trimStart==2);
  assert(SaveEditorSettings((d/"PDXEditor.ini").wstring(),p,(d/"sample.pdxedit").wstring(),saved));
  assert(LoadEditorSettings((d/"PDXEditor.ini").wstring(),q,last));assert(q.windowW==1200);
+ p.audioOutput=1;p.ndsifCom=12;CopyEditorSettings(q,p);
+ assert(q.audioOutput==1&&q.ndsifCom==12);
+ saved.clear();assert(SaveEditorSettings((d/"audio.ini").wstring(),p,last,saved));
+ ProjectSetting audio;assert(LoadEditorSettings((d/"audio.ini").wstring(),audio,last));
+ assert(audio.audioOutput==1&&audio.ndsifCom==12);
+ assert(std::wstring(Tr(L"nds_output"))==L"Audio output");
  {std::ofstream f(d/"partial.ini");f<<"windowW=1300\n";}
  std::set<std::string> iniKeys,projectKeys;ProjectSetting common,legacy;
  assert(LoadEditorSettings((d/"partial.ini").wstring(),common,last,&iniKeys));
  {std::ofstream f(d/"legacy.pdxedit");f<<"pdxName=legacy\nwindowW=1600\nwindowH=900\n";}
  assert(LoadProject((d/"legacy.pdxedit").wstring(),legacy,err,&projectKeys));
  MergeEditorSettings(legacy,common,iniKeys,projectKeys);assert(legacy.windowW==1300&&legacy.windowH==900);
+ {std::ofstream f(d/"old_ndsif.pdxedit");f<<"pdxName=legacy\naudioOutput=1\nndsifCom=7\n";}
+ assert(LoadProject((d/"old_ndsif.pdxedit").wstring(),legacy,err,&projectKeys));
+ MergeEditorSettings(legacy,common,iniKeys,projectKeys);assert(legacy.audioOutput==1&&legacy.ndsifCom==7);
+ iniKeys.insert("audioOutput");iniKeys.insert("ndsifCom");
+ MergeEditorSettings(legacy,common,iniKeys,projectKeys);assert(legacy.audioOutput==0&&legacy.ndsifCom==0);
  std::vector<float> samples{0.0f,0.25f,-0.25f,0.5f,-0.5f,0.0f};
  assert(WriteMono16Wave((d/"test.wav").wstring(),samples,15625,err));WaveData wave;
  assert(LoadWave((d/"test.wav").wstring(),wave,err));assert(wave.mono.size()==samples.size());
@@ -106,9 +117,9 @@ with tempfile.TemporaryDirectory() as tmp:
 keys = set()
 for p in (ROOT / "src").glob("*"):
     if p.suffix in {".cpp", ".h"} and p.name != "BuiltinEnglish.h":
-        keys.update(re.findall(r'Tr\(L"(s\d+)"\)', p.read_text(encoding="utf-8-sig")))
+        keys.update(re.findall(r'Tr\(L"([^"]+)"\)', p.read_text(encoding="utf-8-sig")))
 for lang in ("ja", "en"):
-    supplied = set(re.findall(r'^text\.(s\d+)=', read(f"languages/{lang}.lang"), re.M))
+    supplied = set(re.findall(r'^text\.([^=]+)=', read(f"languages/{lang}.lang"), re.M))
     assert keys <= supplied, (lang, keys - supplied)
 ET.parse(ROOT / "PDXEditor.vcxproj")
 assert 'AfterTargets="Build"' in read("PDXEditor.vcxproj")

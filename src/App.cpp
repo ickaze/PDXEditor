@@ -113,7 +113,10 @@ enum
     ID_STRETCH,
     ID_PREVIEWTR,
     ID_LANGUAGE,
-    ID_WAVESCROLL
+    ID_WAVESCROLL,
+    ID_OUTPUT,
+    ID_PORT,
+    ID_RECONNECT
 };
 
 static int PitchToPdx(int octave, int semi)
@@ -308,7 +311,7 @@ LRESULT App::OnMsg(UINT m, WPARAM w, LPARAM l)
         {
             RECT rr{};
             GetClientRect(hwnd_, &rr);
-            int top = 80, bottom = (int)rr.bottom - 8, usable = std::max(100, bottom - top - 8);
+            int top = 114, bottom = (int)rr.bottom - 8, usable = std::max(100, bottom - top - 8);
             int y = std::clamp(GET_Y_LPARAM(l), top + 80, bottom - 80);
             prj_.rightListPercent = std::clamp((y - top) * 100 / usable, 20, 85);
             Layout();
@@ -388,6 +391,15 @@ LRESULT App::OnMsg(UINT m, WPARAM w, LPARAM l)
         AddDropped((HDROP)w);
         return 0;
     case WM_TIMER:
+        if (w == 1)
+        {
+            auto error = NdsifAudio::Instance().TakeError();
+            if (!error.empty())
+            {
+                Log(std::wstring(Tr(L"nds_error")) + L" " + error);
+                NdsifAudio::Instance().Close();
+            }
+        }
         if (w == 2)
         {
             // Waveform animation timer (~60 fps).  The WAV-list waveform itself
@@ -499,6 +511,20 @@ LRESULT App::OnMsg(UINT m, WPARAM w, LPARAM l)
         else if (id == ID_MIDICOMBO && code == CBN_SELCHANGE &&
                  IsDlgButtonChecked(hwnd_, ID_MIDITOGGLE))
             OpenMidi();
+        else if ((id == ID_OUTPUT || id == ID_PORT) && code == CBN_SELCHANGE && !updating_)
+        {
+            prj_.audioOutput = (int)SendMessage(outputCombo_, CB_GETCURSEL, 0, 0);
+            int row = (int)SendMessage(portCombo_, CB_GETCURSEL, 0, 0);
+            if (row >= 0 && row < (int)outputPorts_.size())
+                prj_.ndsifCom = outputPorts_[row];
+            ApplyAudioOutput();
+            SaveEditorNow();
+        }
+        else if (id == ID_RECONNECT && code == BN_CLICKED)
+        {
+            RefreshOutputPorts();
+            ApplyAudioOutput();
+        }
         else if (id == ID_LANGUAGE && code == CBN_DROPDOWN && !updating_)
         {
             LoadLanguagePacks(AppDirectory());
@@ -750,6 +776,7 @@ LRESULT App::OnMsg(UINT m, WPARAM w, LPARAM l)
         }
         break;
     case WM_DESTROY:
+        NdsifAudio::Instance().Close();
         CloseMidi();
         mousePlayer_.Stop();
         for (auto &p : keyPlayers_)
@@ -826,6 +853,12 @@ void App::CreateUI()
     languageLabel_ = C(0, L"STATIC", Tr(L"s042"), SS_LEFT, 0);
     languageCombo_ = C(0, WC_COMBOBOXW, L"", CBS_DROPDOWNLIST | WS_VSCROLL, ID_LANGUAGE);
     ReloadLanguageCombo();
+    outputLabel_ = C(0, L"STATIC", Tr(L"nds_output"), SS_LEFT, 0);
+    outputCombo_ = C(0, WC_COMBOBOXW, L"", CBS_DROPDOWNLIST | WS_VSCROLL, ID_OUTPUT);
+    portCombo_ = C(0, WC_COMBOBOXW, L"", CBS_DROPDOWNLIST | WS_VSCROLL, ID_PORT);
+    reconnectBtn_ = C(0, L"BUTTON", Tr(L"nds_reconnect"), BS_PUSHBUTTON, ID_RECONNECT);
+    SendMessage(outputCombo_, CB_ADDSTRING, 0, (LPARAM)L"Windows Audio");
+    SendMessage(outputCombo_, CB_ADDSTRING, 0, (LPARAM)L"NDSIF");
     for (HWND h : {volTrack_, trTrack_, previewTrack_})
         SetWindowSubclass(h, SliderProc, 1, 0);
     ListView_SetBkColor(list_, kPanel);
@@ -885,6 +918,8 @@ void App::CreateUI()
     ApplyUiState();
     ApplyLanguage();
     UpdateControls();
+    RefreshOutputPorts();
+    ApplyAudioOutput();
     editorReady_ = true;
     SaveEditorNow();
     Log(Tr(L"s043"));
@@ -1049,7 +1084,9 @@ void App::ApplyLanguage()
     SelectLanguageIndex(prj_.language);
     if (prj_.language >= 0 && prj_.language < (int)gLanguagePacks.size())
         prj_.languageCode = gLanguagePacks[prj_.language].code;
-    SetWindowTextW(hwnd_, (std::wstring(Tr(L"s044")) + L" v1.1.1").c_str());
+    SetWindowTextW(outputLabel_, Tr(L"nds_output"));
+    SetWindowTextW(reconnectBtn_, Tr(L"nds_reconnect"));
+    SetWindowTextW(hwnd_, (std::wstring(Tr(L"s044")) + L" v1.2.0").c_str());
     SetWindowTextW(pdxNameLabel_, Tr(L"s027"));
     SetWindowLongPtrW(pdxNameLabel_, GWL_STYLE,
                       (GetWindowLongPtrW(pdxNameLabel_, GWL_STYLE) & ~SS_TYPEMASK) |
@@ -1141,7 +1178,12 @@ void App::Layout()
     MoveWindow(midiToggle_, 572, 46, 180, 24, TRUE);
     MoveWindow(midiCombo_, 760, 44, std::max(180, W - 768), 140, TRUE);
 
-    const int top = 80, gap = 8, left = 520;
+    MoveWindow(outputLabel_, 8, 83, 100, 20, TRUE);
+    MoveWindow(outputCombo_, 112, 78, 110, 120, TRUE);
+    MoveWindow(portCombo_, 230, 78, 110, 180, TRUE);
+    MoveWindow(reconnectBtn_, 348, 77, 156, 28, TRUE);
+
+    const int top = 114, gap = 8, left = 520;
     const int rightX = left, rightW = std::max(200, W - rightX - 8);
     const int bottom = H - 8;
     // Right pane is reserved exclusively for the WAV list and log.
@@ -2436,7 +2478,8 @@ void App::SaveEditorNow()
         editorSaveError_ = false;
         for (const char *key :
              {"languageCode", "previewVolume", "internalOctave", "windowX", "windowY", "windowW",
-              "windowH", "rightListPercent", "midiDeviceName", "midiInputEnabled", "lastProject"})
+              "windowH", "rightListPercent", "midiDeviceName", "midiInputEnabled", "lastProject",
+              "audioOutput", "ndsifCom"})
             editorIniKeys_.insert(key);
         for (int i = 0; i < 9; ++i)
             editorIniKeys_.insert("listWidth." + std::to_string(i));
@@ -2536,6 +2579,8 @@ void App::LoadProjectFile(const std::wstring &p, bool ask)
     if (s.languageCode.empty() && s.language >= 0 && s.language < (int)gLanguagePacks.size())
         s.languageCode = gLanguagePacks[s.language].code;
     // INI wins per field; missing fields fall back to actual legacy project keys.
+    const bool wasNdsif = prj_.audioOutput == 1;
+    const int previousCom = prj_.ndsifCom;
     MergeEditorSettings(s, prj_, editorIniKeys_, projectKeys);
     prj_ = std::move(s);
     SelectLanguageIndex(prj_.language);
@@ -2575,6 +2620,11 @@ void App::LoadProjectFile(const std::wstring &p, bool ask)
     ApplyLanguage();
     UpdateControls();
     InvalidateRect(keys_, nullptr, FALSE);
+    if (editorReady_ && (wasNdsif != (prj_.audioOutput == 1) || previousCom != prj_.ndsifCom))
+    {
+        RefreshOutputPorts();
+        ApplyAudioOutput();
+    }
     lastProject_ = projectPath_;
     SaveEditorNow();
     Log(Tr(L"s062") + BaseName(projectAbs.wstring()));
@@ -3064,4 +3114,54 @@ void App::EndControlEdit()
     redo_.clear();
     pendingControlEdit_.reset();
     Log(Tr(L"s025") + std::to_wstring(prj_.currentBank) + L" PDX " + std::to_wstring(selected_));
+}
+
+
+void App::RefreshOutputPorts()
+{
+    updating_ = true;
+    outputPorts_ = NdsifAudio::Ports();
+    if (prj_.ndsifCom > 0 && std::find(outputPorts_.begin(), outputPorts_.end(), prj_.ndsifCom) == outputPorts_.end())
+    {
+        outputPorts_.push_back(prj_.ndsifCom);
+        std::sort(outputPorts_.begin(), outputPorts_.end());
+    }
+    SendMessage(portCombo_, CB_RESETCONTENT, 0, 0);
+    int selected = -1;
+    for (size_t i = 0; i < outputPorts_.size(); ++i)
+    {
+        auto name = L"COM" + std::to_wstring(outputPorts_[i]);
+        SendMessage(portCombo_, CB_ADDSTRING, 0, (LPARAM)name.c_str());
+        if (outputPorts_[i] == prj_.ndsifCom)
+            selected = (int)i;
+    }
+    SendMessage(portCombo_, CB_SETCURSEL, selected, 0);
+    SendMessage(outputCombo_, CB_SETCURSEL, prj_.audioOutput, 0);
+    updating_ = false;
+}
+
+void App::ApplyAudioOutput()
+{
+    mousePlayer_.Stop();
+    for (auto &p : midiPlayers_)
+        p.Stop();
+    for (auto &p : keyPlayers_)
+        p.Stop();
+    midiDown_.clear();
+    keyDownSemis_.clear();
+    keyHolding_ = listHolding_ = false;
+    NdsifAudio::Instance().Close();
+    WaveOutPlayer::UseNdsif(prj_.audioOutput == 1);
+    SendMessage(outputCombo_, CB_SETCURSEL, prj_.audioOutput, 0);
+    EnableWindow(portCombo_, prj_.audioOutput == 1);
+    EnableWindow(reconnectBtn_, prj_.audioOutput == 1);
+    if (prj_.audioOutput != 1)
+        return;
+    std::wstring error;
+    if (prj_.ndsifCom <= 0)
+        Log(Tr(L"nds_choose_port"));
+    else if (!NdsifAudio::Instance().Open(prj_.ndsifCom, error))
+        Log(std::wstring(Tr(L"nds_error")) + L" " + error);
+    else
+        Log(std::wstring(Tr(L"nds_connected")) + L" COM" + std::to_wstring(prj_.ndsifCom));
 }

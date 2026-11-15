@@ -113,6 +113,11 @@ inline const LanguagePack &BuiltinEnglishLanguage()
             {L"s098",
              L"Cannot save PDXEditor.ini. Check write permission for the executable folder."},
             {L"s099", L"Change playback direction (checked: reverse)"},
+            {L"nds_output", L"Audio output"},
+            {L"nds_reconnect", L"Refresh/connect"},
+            {L"nds_error", L"NDSIF output stopped:"},
+            {L"nds_choose_port", L"Select the NDSIF COM port."},
+            {L"nds_connected", L"NDSIF connected:"},
         }};
     return pack;
 }

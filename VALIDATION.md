@@ -1,3 +1,39 @@
+# PDXEditor v1.2.0 検証記録
+
+検証日：2026-11-15。基準：GitHub mainのv1.1.1（52ada92446f695639ea02db77615b10c633965bd）へNDSIF出力を移植したソース。
+
+## 今版で実施
+
+- `python3 tests/run_portable_checks.py`：実ソースの設定・言語・WAV・PDX処理をGCC/C++17でコンパイルして検証。
+- 既存の逆再生・範囲設定の保存、WAV／ADPCM／P16／P8、単一／複数バンクPDXの読み書きを確認。
+- 新しい音声出力設定のINI保存・読込、共通設定コピー、INI優先、旧NDSIFプロジェクトからの未設定項目移行を確認。
+- 内蔵英語と外部日本語／英語の追加表示キー、ビルドソース登録、Release静的ランタイム・デバッグ情報無効化、BATのCRLFを確認。
+- 実際の `src/NdsifAudio.cpp` を模擬Win32 APIでコンパイルし、CRC既知値、0～256byteのCOBS往復と破損拒否、分割応答読み取りを確認。
+- 非対応ストリーム・固定4MHz・能力ページ循環の拒否、max_payload=64／data_capacity=256での容量制御、同時発音と異なる入力レートの再生位置・終了・離鍵、fault停止と再接続を確認。
+
+模擬通信テスト（GCC/C++17）：
+
+```sh
+g++ -std=c++17 -Wall -Wextra -Werror -pthread -Itests/mock -Isrc tests/ndsif_audio_test.cpp src/NdsifAudio.cpp -o ndsif_audio_test
+./ndsif_audio_test
+```
+
+`tests/mock/windows.h` は模擬通信テスト専用で、通常のWindowsビルドには使用しません。
+
+## 今版の未確認範囲
+
+Windows／VS2022によるGUI全体のビルド、描画・入力・MIDI・waveOut、NanoDrive8実機出力、通信遅延・音質・長時間稼働は未確認です。模擬APIとASCIIパスを使う検証は、Windowsのドライバーや日本語パス・権限を検証しません。
+本アーカイブはソースのみです。新しいWindowsバイナリの実行・インポートテーブル・デバッグディレクトリーの検証は未実施です。
+
+## 同梱物
+
+ソース、VS/CMake設定、CRLFのBAT、日本語／英語、LICENSE、第三者通知、README、CHANGELOG、RELEASE_NOTES、検証コードを含みます。EXE・DLL・PDB・ユーザーINI・WAV・PDXは含みません。
+SHA256SUMS.txtは同梱ファイルのハッシュ一覧で、自身を除外します。
+
+---
+
+## 以下はv1.1.1の過去の検証記録
+
 # PDXEditor v1.1.1 検証記録
 
 検証日：2026-10-11。対象：このソース配布物。

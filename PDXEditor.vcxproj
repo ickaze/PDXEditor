@@ -10,8 +10,12 @@
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile><RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary></ClCompile>
   </ItemDefinitionGroup>
-  <ItemGroup><ClCompile Include="src\main.cpp"/><ClCompile Include="src\App.cpp"/><ClCompile Include="src\Audio.cpp"/><ClCompile Include="src\Pdx.cpp"/><ClCompile Include="src\Settings.cpp"/></ItemGroup>
-  <ItemGroup><ClInclude Include="src\Common.h"/><ClInclude Include="src\App.h"/><ClInclude Include="src\Audio.h"/><ClInclude Include="src\Pdx.h"/><ClInclude Include="src\Settings.h"/><ClInclude Include="src\Localization.h"/><ClInclude Include="src\BuiltinEnglish.h"/></ItemGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile><DebugInformationFormat>None</DebugInformationFormat></ClCompile>
+    <Link><GenerateDebugInformation>false</GenerateDebugInformation></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="src\main.cpp"/><ClCompile Include="src\App.cpp"/><ClCompile Include="src\Audio.cpp"/><ClCompile Include="src\NdsifAudio.cpp"/><ClCompile Include="src\Pdx.cpp"/><ClCompile Include="src\Settings.cpp"/></ItemGroup>
+  <ItemGroup><ClInclude Include="src\Common.h"/><ClInclude Include="src\App.h"/><ClInclude Include="src\Audio.h"/><ClInclude Include="src\NdsifAudio.h"/><ClInclude Include="src\NdsifWire.h"/><ClInclude Include="src\Pdx.h"/><ClInclude Include="src\Settings.h"/><ClInclude Include="src\Localization.h"/><ClInclude Include="src\BuiltinEnglish.h"/></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyRuntimeFiles" AfterTargets="Build">
     <ItemGroup>
@@ -23,3 +27,4 @@
     <Copy SourceFiles="@(RuntimeDocuments)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
   </Target>
 </Project>
+

@@ -105,3 +105,10 @@ text.s097=P8 (8bit PCM)
 text.s098=PDXEditor.iniを保存できません。実行ファイルのフォルダーの書き込み権限を確認してください。
 
 text.s099=再生方向を変更（チェック時は逆再生）
+
+
+text.nds_output=音声出力
+text.nds_reconnect=再検出・接続
+text.nds_error=NDSIF出力を停止しました：
+text.nds_choose_port=NDSIFのCOMポートを選択してください。
+text.nds_connected=NDSIF接続完了：
