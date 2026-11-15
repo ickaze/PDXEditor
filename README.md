@@ -83,7 +83,7 @@ NDSIFではUSB接続した対応機器のCOM番号を選択してください。
 - PDX保存形式や保存データは変えません。実機試聴はADPCMへの追加変換を伴うため、Windows出力と完全に同一の波形にはなりません。
 
 NDSIF用DLLは不要です。機器はWindowsからCOMポートとして認識される必要があります。他のアプリが同じCOMポートを使用している間は接続できません。
-Windows／NanoDrive8実機でのビルド・音出しは未検証です。実施した模擬通信テストは `VALIDATION.md` を参照してください。
+Windowsでのビルド・PE検査はGitHub Actionsで実施し、Windows配布ZIPの `BUILD_VALIDATION.txt` に結果を記録します。NanoDrive8実機での音出しは未検証です。模擬通信テストと検証範囲は `VALIDATION.md` を参照してください。
 
 ## 保存とPDX出力
 
@@ -137,3 +137,7 @@ EXEを配布するときは`languages`フォルダーとコピーされた文書
 **0BSD**。Copyright (C) 2026 by I.C.KaZe。全文は[LICENSE](LICENSE)、依存関係は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を参照してください。
 
 検証方法と実施範囲は[VALIDATION.md](VALIDATION.md)、変更履歴は[CHANGELOG.md](CHANGELOG.md)に記載しています。ソース配布物にはWindows用EXEやユーザーのWAV／PDXを含めません。
+
+## GitHub Releases
+
+`.github/workflows/release.yml` はmain更新時または手動実行時にポータブルテスト、Windows Release x64ビルド、PEとZIPの検査を行い、v1.2.0のWindows版・ソース版・SHA-256を公開します。公開先タグとビルドコミットの一致を確認し、別コミットの同名タグがある場合は上書きしません。新規Releaseはドラフトで作成し、アップロード完了後に公開します。

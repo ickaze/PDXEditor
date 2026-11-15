@@ -1,0 +1,74 @@
+name: Build and release v1.2.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release.yml'
+      - 'src/**'
+      - 'tests/**'
+      - 'languages/**'
+      - '*.md'
+      - 'LICENSE'
+      - 'CMakeLists.txt'
+      - 'PDXEditor.vcxproj'
+      - 'build_vs2022.bat'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-v1.2.0
+  cancel-in-progress: false
+
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Core regression checks
+        run: python3 tests/run_portable_checks.py
+      - name: NDSIF serial and mixer checks
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -pthread -Itests/mock -Isrc tests/ndsif_audio_test.cpp src/NdsifAudio.cpp -o /tmp/ndsif_audio_test
+          /tmp/ndsif_audio_test
+
+  windows-release:
+    needs: portable
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build Release x64 with static runtime
+        shell: cmd
+        run: call build_vs2022.bat
+      - name: Inspect PE, package and verify ZIPs
+        shell: pwsh
+        run: python tests/package_release.py
+      - name: Publish v1.2.0 assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release view v1.2.0 *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create v1.2.0 --target $env:GITHUB_SHA --title 'PDXEditor v1.2.0' --notes-file RELEASE_NOTES.md --draft
+            if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
+          }
+          $release = gh release view v1.2.0 --json targetCommitish | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect release' }
+          # Existing releases are updated only when their tag points at this source.
+          $tagCommit = gh api "repos/$env:GH_REPO/commits/v1.2.0" --jq '.sha'
+          if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $env:GITHUB_SHA) {
+            throw 'v1.2.0 tag does not point at this build; refusing mismatched assets'
+          }
+          gh release upload v1.2.0 dist/PDXEditor_v1.2.0_Windows_x64.zip dist/PDXEditor_v1.2.0_source.zip dist/SHA256SUMS.txt --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed' }
+          gh release edit v1.2.0 --title 'PDXEditor v1.2.0' --notes-file RELEASE_NOTES.md --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release notes update failed' }

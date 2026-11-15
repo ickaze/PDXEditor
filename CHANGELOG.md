@@ -4,6 +4,8 @@
 
 ## v1.2.0 — 2026-11-15
 
+- GitHub ActionsによるWindowsビルド、PE／ZIP検査、Windows版・ソース版・SHA-256のRelease公開を追加。
+
 - v1.1.1の逆再生・波形編集・INI分離・内蔵英語・MIDI設定保持を基準にNDSIF出力を追加。
 - Windows Audio／NDSIF、COMポート、再検出・接続を追加。上部共通バーを3行とし、左右ペインの役割を維持。
 - WAVリスト・画面鍵盤・PCキー・MIDIの試聴を共通ミキサーへ接続し、MSM6258互換ADPCMを15.625kHzで連続転送。
