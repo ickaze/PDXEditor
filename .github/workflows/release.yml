@@ -61,14 +61,23 @@ jobs:
             gh release create v1.2.0 --target $env:GITHUB_SHA --title 'PDXEditor v1.2.0' --notes-file RELEASE_NOTES.md --draft
             if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
           }
-          $release = gh release view v1.2.0 --json targetCommitish | ConvertFrom-Json
+          $release = gh release view v1.2.0 --json targetCommitish,isDraft | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect release' }
-          # Existing releases are updated only when their tag points at this source.
-          $tagCommit = gh api "repos/$env:GH_REPO/commits/v1.2.0" --jq '.sha'
-          if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $env:GITHUB_SHA) {
-            throw 'v1.2.0 tag does not point at this build; refusing mismatched assets'
+          if ($release.isDraft) {
+            # GitHub creates the tag when the draft is published.
+            gh release edit v1.2.0 --target $env:GITHUB_SHA
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot set draft source commit' }
+          } else {
+            $tagCommit = gh api "repos/$env:GH_REPO/commits/v1.2.0" --jq '.sha'
+            if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $env:GITHUB_SHA) {
+              throw 'Published tag does not point at this build; refusing mismatched assets'
+            }
           }
           gh release upload v1.2.0 dist/PDXEditor_v1.2.0_Windows_x64.zip dist/PDXEditor_v1.2.0_source.zip dist/SHA256SUMS.txt --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Asset upload failed' }
           gh release edit v1.2.0 --title 'PDXEditor v1.2.0' --notes-file RELEASE_NOTES.md --draft=false --latest
           if ($LASTEXITCODE -ne 0) { throw 'Release notes update failed' }
+          $tagCommit = gh api "repos/$env:GH_REPO/commits/v1.2.0" --jq '.sha'
+          if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $env:GITHUB_SHA) {
+            throw 'Published tag verification failed'
+          }
